@@ -33,7 +33,7 @@ print(mean_price)
 
 
 hist_plot = plt.hist(df['MEDV'], edgecolor='black', bins=5)
-plt.title('Median Home Price Per Suburb in Boston')
+plt.title('Median Home Price (Owner Occupied) Per Suburb in Boston')
 plt.xlabel('Suburbs')
 plt.ylabel('Price (In $1,000s)')
 
