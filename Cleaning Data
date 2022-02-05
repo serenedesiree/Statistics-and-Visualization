@@ -1,0 +1,26 @@
+"""
+@author: Serene
+
+There's no data on how many guests stay, but we can make an 
+estimate based on Airbnb's data that about 70% of guests leave reviews. 
+
+
+Average rating of Airbnb houses and reviews in the last 12 months
+"""
+from matplotlib import pyplot as plt
+import seaborn as sns
+import pandas as pd
+import re
+#pd.set_option("display.max_rows", None, "display.max_columns", None)
+import numpy
+
+df = pd.read_csv('''D:/Coding/Python/Kaggle/Sydney Airbnb/listings.csv''')
+
+
+# delete any rows with 'nan' in the neighborhood cell
+
+df.dropna(subset = ["neighbourhood"], inplace=True)
+
+print(df['neighbourhood'])
+
+df.to_csv('listings_neighbourhood_nan_removed')
