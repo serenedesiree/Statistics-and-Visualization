@@ -1,46 +1,116 @@
-# -*- coding: utf-8 -*-
+
 """
 @author: Serene
+Data from InsideAirbnb
+Assumptions: https://docs.google.com/spreadsheets/d/1iWCNJcSutYqpULSQHlNyGInUvHg2BoUGoNRIGa6Szc4/edit#gid=982310896
 
-There's no data on how many guests stay, but we can make an 
-estimate based on Airbnb's data that about 70% of guests leave reviews. 
-
-
-Average rating of Airbnb houses and reviews in the last 12 months
 """
 from matplotlib import pyplot as plt
 import seaborn as sns
-import pandas as pd
-import re
-#pd.set_option("display.max_rows", None, "display.max_columns", None)
 import numpy
-
-df = pd.read_csv('''D:/Coding/Python/Kaggle/Sydney Airbnb/listings.csv''')
-
-
-# delete any rows with 'nan' in the neighborhood cell
-
-df.dropna(subset = ["neighbourhood"], inplace=True)
-
-print(df['neighbourhood'])
-
-
-neighbourhood = df['neighbourhood']
+import pandas as pd
+pd.set_option("display.max_rows", None, "display.max_columns", None)
+import re
+import io
+#import files, get rid of spaces after words 
+df = pd.read_csv('''D:/Coding/Python/Kaggle/Sydney Airbnb/listings_neighbourhood_nan_removed.csv''')
+df.columns = df.columns.str.rstrip( )
+df['neighbourhood'] = df['neighbourhood'].str.upper()
 
 
+#create list of suburbs
+neighbourhood = []
+#get rid commas after words
+pattern = r'[A-Za-z](.*?)(,| ,)'
 
-#1. Detect when first comma begins, if space is before that, get rid of space. 
-#2. Get rid of everything after comma. State not necessary. 
+#Group names to create a list of neighbourhoods
+#Added None to end in order to make value match index. 
+#Need to change this. 
+for name in df['neighbourhood']:
+    try:
+     
+        name = re.search(pattern, name)
+        name = name.group()
+        name = name.removesuffix(',')
+        name = name.removesuffix(' ,')
+        
+        neighbourhood.append(name)
 
-pattern = r'[,| ,].*$'
+    except Exception as e:
+        print(e)
+        x = None
+        neighbourhood.append(x)
+for n in neighbourhood:
+    try:
+        n.capitalize()
+    except:
+        continue
+        
+        
+#drop nonetypes in database
+df['neighbourhood'] = neighbourhood
+df.dropna(subset=['neighbourhood'], inplace=False)
+df.dropna(subset=['neighbourhood'])
+df['neighbourhood'] = df['neighbourhood'].str.rstrip( )
+df.dropna(subset=['name','neighbourhood'], inplace=True)
 
-for name in neighbourhood:
-    print(name)
-    new_name = re.sub(pattern,'', name)
-    print('2',new_name)
+
+#only use non nan
+name = [item for item in name if str(item) != 'nan']
+
+#create list of neighbourhoods to compare to. Filter out None types. Replace sydney cbd with cbd, remove sydney as a suburb. 
+#Will use this to scan descriptions of suburbs if the neighbourhood is labelled 'Sydney'. Sydney is not a suburb, it's a region. 
+
+
+organized_neighbourhood = list(set(df['neighbourhood'].values))
+organized_neighbourhood = [each_string.upper() for each_string in organized_neighbourhood]
+organized_neighbourhood = list(set(organized_neighbourhood))
+organized_neighbourhood.remove('SYDNEY')
+organized_neighbourhood = [item for item in organized_neighbourhood if str(item) != 'NaN']
+organized_neighbourhood = list(filter(None, organized_neighbourhood))
+organized_neighbourhood = list(map(lambda x: x.replace('SYDNEY CBD', 'CBD'), organized_neighbourhood))
+organized_neighbourhood.sort()
+
+
+#look for 'Sydney in name, see if another suburb in in a description. If it is, use that suburb'
+def find_value_column(row):
+   
     
+    if 'Sydney' in row['neighbourhood']:
+        for item in (organized_neighbourhood):
+            if item.lower() in row['name'].lower():
+                row['neighbourhood'] = item
+                return(row)
+                break
+        else:
+            return(row)
+        
+            
+           
+    else:
+        return(row)
+                
+
+df_neighbourhood = df.apply(find_value_column, axis=1)
+#print(df_neighbourhood[['neighbourhood','name']])
 
 
-x = (df.groupby(['neighbourhood']).number_of_reviews_ltm.sum())
+df.update(df_neighbourhood)
 
+#print(df[['neighbourhood','name']][df['neighbourhood']=='Sydney'])
+
+#Only include places with a non 0 number of reviews
+id_c = df.drop(df.index[df['number_of_reviews_ltm']==0])
+
+
+#'id' gives us the total houses in an area
+total_id = pd.DataFrame(id_c.groupby(['neighbourhood'])['id'].count().sort_values(ascending=False))
+# adds up total number of reviews
+n_reviews = pd.DataFrame(df.groupby(['neighbourhood'])['number_of_reviews'].sum().sort_values(ascending=False))
+#total number of reviews in the last 12 months
+suburb_count = pd.DataFrame(df.groupby(['neighbourhood'])["number_of_reviews_ltm"].sum().sort_values(ascending=False))
+
+result = pd.concat([total_id, suburb_count, n_reviews], axis=1, join='inner')
+
+print(result)
 
